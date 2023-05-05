@@ -30,22 +30,6 @@ resource "aws_s3_bucket_public_access_block" "lambda_bucket" {
 
 }
 
-# ----------------------------------------------------------------------------------------------------------------------
-# FETCH DEFAULT VPC DATA AND PASS TO THE LAMBDA FUNCTIONS VPC CONFIG
-# ----------------------------------------------------------------------------------------------------------------------
-
-# resource "aws_default_vpc" "default" {
-# }
-
-# data "aws_subnet" "default" {
-#   vpc_id = aws_default_vpc.default.id
-# }
-
-# resource "aws_default_security_group" "default" {
-#   vpc_id = aws_default_vpc.default.id
-# }
-
-
 # Define the IAM policy for the Lambda function
 resource "aws_iam_policy" "lambda_policy" {
   name   = "lambda-api-retrieval-policy"
@@ -89,6 +73,25 @@ resource "aws_iam_role" "lambda_role" {
   ]
 }
 EOF
+}
+
+resource "aws_cloudwatch_event_rule" "trigger_api_retrieval" {
+  name                = "cw-trigger-api-retrieval"
+  description         = "Trigger the example Lambda function"
+  schedule_expression = "rate(5 minutes)" # trigger at At every 10th minute
+}
+
+resource "aws_lambda_permission" "allow_cloudwatch" {
+  statement_id  = "AllowExecutionFromCloudWatchEventRule"
+  action        = "lambda:InvokeFunction"
+  function_name = aws_lambda_function.api_retrieval_function.function_name
+  principal     = "events.amazonaws.com"
+  source_arn    = aws_cloudwatch_event_rule.trigger_api_retrieval.arn
+}
+
+resource "aws_cloudwatch_event_target" "cloudwatch_event_rule" {
+  rule      = aws_cloudwatch_event_rule.trigger_api_retrieval.name
+  arn       = aws_lambda_function.api_retrieval_function.arn
 }
 
 # Attach the IAM policy to the IAM role
