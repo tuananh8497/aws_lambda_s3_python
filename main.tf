@@ -1,28 +1,55 @@
 # Define the provider and region
 provider "aws" {
-  region = "ap-southeast-2"
+  profile = "default"
+  region  = "ap-southeast-2"
 }
 
 data "archive_file" "lambda" {
   type        = "zip"
-  source_file = "../${path.module}/python/main.py"
-  output_path = "../${path.module}/python/main.py.zip"
+  source_file = "${path.module}/python/main.py"
+  output_path = "${path.module}/python/main.py.zip"
 }
 
-# Create an S3 bucket
-resource "aws_s3_bucket_acl" "api_staging_bucket" {
-  bucket = "api-staging-bucket-20230505"
-  acl    = "private"
-
-  tags = {
-    Name = "API data bucket"
-  }
+resource "random_pet" "lambda_bucket_name" {
+  prefix = "lambda"
+  length = 2
 }
+
+resource "aws_s3_bucket" "lambda_bucket" {
+  bucket        = random_pet.lambda_bucket_name.id
+  force_destroy = true
+}
+
+resource "aws_s3_bucket_public_access_block" "lambda_bucket" {
+  bucket = aws_s3_bucket.lambda_bucket.id
+
+  block_public_acls       = true
+  block_public_policy     = true
+  ignore_public_acls      = true
+  restrict_public_buckets = true
+
+}
+
+# ----------------------------------------------------------------------------------------------------------------------
+# FETCH DEFAULT VPC DATA AND PASS TO THE LAMBDA FUNCTIONS VPC CONFIG
+# ----------------------------------------------------------------------------------------------------------------------
+
+# resource "aws_default_vpc" "default" {
+# }
+
+# data "aws_subnet" "default" {
+#   vpc_id = aws_default_vpc.default.id
+# }
+
+# resource "aws_default_security_group" "default" {
+#   vpc_id = aws_default_vpc.default.id
+# }
+
 
 # Define the IAM policy for the Lambda function
 resource "aws_iam_policy" "lambda_policy" {
-  name        = "lambda-policy"
-  policy      = <<EOF
+  name   = "lambda-api-retrieval-policy"
+  policy = <<EOF
 {
   "Version": "2012-10-17",
   "Statement": [
@@ -37,7 +64,7 @@ resource "aws_iam_policy" "lambda_policy" {
         "s3:GetObject",
         "s3:PutObject"
       ],
-      "Resource": "${aws_s3_bucket.api_staging_bucket.arn}/*"
+      "Resource": "${aws_s3_bucket.lambda_bucket.arn}/*"
     }
   ]
 }
@@ -73,8 +100,8 @@ resource "aws_iam_role_policy_attachment" "lambda_policy_attachment" {
 # Create the Lambda function
 resource "aws_lambda_function" "api_retrieval_function" {
   function_name = "api-retrieval-function"
-  handler       = "lambda_function.handler"
-  runtime       = "python3.10"
+  handler       = "main.lambda_handler"
+  runtime       = "python3.7"
   memory_size   = 128
   timeout       = 5
 
@@ -82,12 +109,15 @@ resource "aws_lambda_function" "api_retrieval_function" {
   role = aws_iam_role.lambda_role.arn
 
   # Include the Lambda function code
-  filename      = "${path.module}/python/main.py.zip"
+  filename = "${path.module}/python/main.py.zip"
+  # source_code_hash = filebase64sha256("${path.module}/python/main.py.zip")
+  source_code_hash = data.archive_file.lambda.output_base64sha256
 
   # Set environment variables
   environment {
     variables = {
-      S3_BUCKET_NAME = aws_s3_bucket.api_staging_bucket.id
+      S3_BUCKET_NAME = aws_s3_bucket.lambda_bucket.id,
+      NOTHING = "nothing"
     }
   }
 }

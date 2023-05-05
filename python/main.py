@@ -3,9 +3,11 @@ import json
 import requests
 import logging
 from botocore.exceptions import ClientError
+import os 
 
-# S3_BUCKET = "bucket-test-20230504222500" # Dev
-S3_BUCKET = "api-staging-bucket-20230505" #actual
+# S3_BUCKET = "api-staging-bucket-20230505" #actual
+
+S3_BUCKET_NAME = os.environ['S3_BUCKET_NAME']
 
 BASE_URL = "https://random-data-api.com/api/v2/users?size=2&response_type=json"
 
@@ -29,12 +31,13 @@ def upload_json(data, bucket_name, object_name=None):
     return True
 
 def lambda_handler(event, context):
+    # send GET request
     response = requests.get(BASE_URL)
 
     if response.status_code == 200:
         data = response.json()
         for obj in data:
-            upload_json(obj, bucket_name=S3_BUCKET, object_name=obj['uid'])
+            upload_json(obj, bucket_name=S3_BUCKET_NAME, object_name=obj['uid'])
         return {
         'statusCode': 200,
         'body': json.dumps(data)
