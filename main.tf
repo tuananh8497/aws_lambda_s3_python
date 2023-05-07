@@ -90,8 +90,8 @@ resource "aws_lambda_permission" "allow_cloudwatch" {
 }
 
 resource "aws_cloudwatch_event_target" "cloudwatch_event_rule" {
-  rule      = aws_cloudwatch_event_rule.trigger_api_retrieval.name
-  arn       = aws_lambda_function.api_retrieval_function.arn
+  rule = aws_cloudwatch_event_rule.trigger_api_retrieval.name
+  arn  = aws_lambda_function.api_retrieval_function.arn
 }
 
 # Attach the IAM policy to the IAM role
@@ -119,8 +119,7 @@ resource "aws_lambda_function" "api_retrieval_function" {
   # Set environment variables
   environment {
     variables = {
-      S3_BUCKET_NAME = aws_s3_bucket.lambda_bucket.id,
-      NOTHING = "nothing"
+      S3_BUCKET_NAME = aws_s3_bucket.lambda_bucket.id
     }
   }
 }
