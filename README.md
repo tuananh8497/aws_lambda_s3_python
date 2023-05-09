@@ -31,9 +31,19 @@ To run this example you need to execute:
 
 ```bash
 $ terraform init
+
+# without variables
 $ terraform plan
 $ terraform apply
+
+# with variables
+$ terraform plan --var-file="[INPUT_HERE]"
+$ terraform apply --var-file="[INPUT_HERE]"
+$ terraform output -state="terraform.tfstate"
+$ terraform refresh --var-file="[INPUT_HERE]" -lock=false
 ```
+
+
 
 ## Assumption
   1. The IAM user that deployed the infrastructure has sufficient permission to apply and make change to the system
